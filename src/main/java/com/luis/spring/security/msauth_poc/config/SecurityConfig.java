@@ -3,6 +3,7 @@ package com.luis.spring.security.msauth_poc.config;
 import com.luis.spring.security.msauth_poc.ratelimit.LoginRateLimitFilter;
 import com.luis.spring.security.msauth_poc.security.AccessDeniedHandlerImpl;
 import com.luis.spring.security.msauth_poc.security.JwtAuthenticationEntryPoint;
+import com.luis.spring.security.msauth_poc.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -42,6 +43,7 @@ public class SecurityConfig {
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final AccessDeniedHandlerImpl accessDeniedHandler;
     private final LoginRateLimitFilter loginRateLimitFilter;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
