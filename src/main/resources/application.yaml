@@ -1,3 +1,89 @@
 spring:
   application:
     name: msauth-poc
+
+  # ── PostgreSQL ──────────────────────────────────────────
+  datasource:
+    url: jdbc:postgresql://localhost:5432/msauth
+    username: msauth
+    password: msauth_secret
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 30000
+      max-lifetime: 1800000
+      connection-timeout: 20000
+
+  # ── JPA / Hibernate ────────────────────────────────────
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        "[format_sql]": true
+
+  # ── Flyway ─────────────────────────────────────────────
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  # ── Redis ──────────────────────────────────────────────
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: redis_secret
+      timeout: 2000
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+
+  # ── Cache (backed by Redis) ────────────────────────────
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000
+      cache-null-values: false
+
+
+# ── Actuator / Prometheus ──────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,caches
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        "[http.server.requests]": true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+# ── Logging ────────────────────────────────────────────────
+logging:
+  level:
+    root: INFO
+    "[com.luis.spring.security]": DEBUG
+    "[org.springframework.security]": DEBUG
+    "[org.hibernate.SQL]": DEBUG
+    "[org.hibernate.type.descriptor.sql.BasicBinder]": TRACE
+
+
+# ── JWT (custom) ───────────────────────────────────────────
+security:
+  jwt:
+    secret-key: ${JWT_SECRET:dGhpcyBpcyBhIHZlcnkgc2VjdXJlIGtleSBmb3IgZGV2ZWxvcG1lbnQgb25seSBkbyBub3QgdXNlIGluIHByb2R1Y3Rpb24=}
+    access-token-expiration: 900000
+    refresh-token-expiration: 604800000
+
+
