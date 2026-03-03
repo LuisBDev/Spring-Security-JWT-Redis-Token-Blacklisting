@@ -1,6 +1,7 @@
 package com.luis.spring.security.msauth_poc.security;
 
 import com.luis.spring.security.msauth_poc.entity.User;
+import com.luis.spring.security.msauth_poc.exception.ResourceNotFoundException;
 import com.luis.spring.security.msauth_poc.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -23,7 +24,7 @@ public class CustomUserDetailsService implements UserDetailsService {
 
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
 
         return new CustomUserDetails(user);
     }
