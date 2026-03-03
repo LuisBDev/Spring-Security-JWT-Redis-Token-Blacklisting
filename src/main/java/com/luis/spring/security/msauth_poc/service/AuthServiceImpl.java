@@ -18,6 +18,7 @@ import com.luis.spring.security.msauth_poc.security.TokenBlacklistService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -72,20 +73,50 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional
     public AuthResponse login(LoginRequest request) {
 
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getEmail(),
-                        request.getPassword()
-                )
-        );
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            request.getEmail(),
+                            request.getPassword()
+                    )
+            );
 
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        log.info("User logged in successfully: {}", userDetails.getUsername());
+            CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 
-        return buildAuthResponse(userDetails);
+            // Reset failed attempts on successful login
+            User user = userRepository.findByEmail(request.getEmail())
+                    .orElseThrow(() -> new ResourceNotFoundException("User", "email", request.getEmail()));
+            
+            if (user.getFailedAttempts() > 0) {
+                user.setFailedAttempts(0);
+                userRepository.save(user);
+            }
 
+            log.info("User logged in successfully: {}", userDetails.getUsername());
+            return buildAuthResponse(userDetails);
+
+        } catch (BadCredentialsException e) {
+            handleFailedLogin(request.getEmail());
+            throw e;
+        }
+
+    }
+
+    private void handleFailedLogin(String email) {
+        userRepository.findByEmail(email).ifPresent(user -> {
+            int newAttempts = user.getFailedAttempts() + 1;
+            user.setFailedAttempts(newAttempts);
+
+            if (newAttempts >= 5) {
+                user.setAccountNonLocked(false);
+                log.warn("Account locked for user: {} due to {} failed attempts", email, newAttempts);
+            }
+
+            userRepository.save(user);
+        });
     }
 
     @Transactional

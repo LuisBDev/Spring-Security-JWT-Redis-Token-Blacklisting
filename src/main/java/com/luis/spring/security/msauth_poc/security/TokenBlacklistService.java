@@ -1,13 +1,11 @@
 package com.luis.spring.security.msauth_poc.security;
 
-import com.luis.spring.security.msauth_poc.entity.TokenBlacklist;
-import com.luis.spring.security.msauth_poc.repository.TokenBlacklistRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.Instant;
 
 @Slf4j
@@ -15,39 +13,20 @@ import java.time.Instant;
 @RequiredArgsConstructor
 public class TokenBlacklistService {
 
-    private final TokenBlacklistRepository tokenBlacklistRepository;
+    private final StringRedisTemplate stringRedisTemplate;
+    private static final String BLACKLIST_PREFIX = "jwt_blacklist:";
 
-    @Transactional
     public void blacklist(String jti, Instant expiration) {
-        if (tokenBlacklistRepository.existsByJti(jti)) {
-            log.debug("Token JTI {} already blacklisted", jti);
-            return;
+        long ttl = Duration.between(Instant.now(), expiration).getSeconds();
+        if (ttl > 0) {
+            String key = BLACKLIST_PREFIX + jti;
+            stringRedisTemplate.opsForValue().set(key, "blacklisted", Duration.ofSeconds(ttl));
+            log.info("Token blacklisted in Redis with JTI: {} (TTL: {}s)", jti, ttl);
         }
-
-        TokenBlacklist entry = TokenBlacklist.builder()
-                .jti(jti)
-                .expiration(expiration)
-                .build();
-
-        tokenBlacklistRepository.save(entry);
-        log.info("Token blacklisted with JTI: {}", jti);
     }
 
-    @Transactional(readOnly = true)
     public boolean isBlacklisted(String jti) {
-        return tokenBlacklistRepository.existsByJti(jti);
-    }
-
-    /**
-     * Cleanup expired blacklisted tokens every hour.
-     * Expired tokens are no longer valid anyway, so keeping them is unnecessary.
-     */
-    @Scheduled(fixedRate = 3_600_000)
-    @Transactional
-    public void cleanupExpiredTokens() {
-        int deleted = tokenBlacklistRepository.deleteExpiredTokens(Instant.now());
-        if (deleted > 0) {
-            log.info("Cleaned up {} expired blacklisted tokens", deleted);
-        }
+        if (jti == null) return false;
+        return stringRedisTemplate.hasKey(BLACKLIST_PREFIX + jti);
     }
 }

@@ -45,6 +45,10 @@ public class User extends BaseAuditEntity {
     private boolean accountNonLocked = true;
 
     @Builder.Default
+    @Column(nullable = false)
+    private int failedAttempts = 0;
+
+    @Builder.Default
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "user_roles",
             joinColumns = @JoinColumn(name = "user_id"),
